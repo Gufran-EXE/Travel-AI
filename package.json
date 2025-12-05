@@ -1,0 +1,20 @@
+{
+  "name": "voyageai-monorepo",
+  "version": "1.0.0",
+  "description": "VoyageAI - AI Travel Planner - MERN Stack Monorepo",
+  "private": true,
+  "scripts": {
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-server": "cd server && npm install",
+    "install-client": "cd client && npm install",
+    "install-all": "npm install && npm run install-server && npm run install-client"
+  },
+  "keywords": ["mern", "travel", "ai", "planner"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
