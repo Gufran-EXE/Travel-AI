@@ -13,7 +13,7 @@ connectDB();
 // CORS configuration for production
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-vercel-app.vercel.app', 'https://voyageai.vercel.app'] // Add your Vercel URL here
+    ? ['https://travel-ai-rose.vercel.app'] // Your Vercel URL
     : 'http://localhost:3000',
   credentials: true,
   optionsSuccessStatus: 200
