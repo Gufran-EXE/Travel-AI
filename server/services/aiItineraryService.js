@@ -198,6 +198,104 @@ Make it realistic, engaging, and within the budget. Include 3 activities per day
   }
 };
 
+const generateGeminiItinerary = async (trip) => {
+  const startDate = new Date(trip.startDate);
+  const endDate = new Date(trip.endDate);
+  const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+  const prompt = `Generate a ${daysDiff}-day travel itinerary for ${trip.destination}.
+
+Trip: ${trip.destination}, ${trip.travelType}, Budget: ${trip.budget} ${trip.currency}, Interests: ${trip.interests.join(', ') || 'general'}
+
+Return ONLY valid JSON (no markdown):
+{
+  "days": [
+    {
+      "dayNumber": 1,
+      "date": "YYYY-MM-DD",
+      "summary": "Brief day summary",
+      "activities": [
+        {
+          "timeSlot": "Morning|Afternoon|Evening",
+          "placeName": "Place name",
+          "placeType": "Museum|Restaurant|Park|Landmark",
+          "description": "Short description (max 100 chars)",
+          "estimatedCost": number,
+          "location": {
+            "address": "Address",
+            "lat": number,
+            "lng": number,
+            "mapUrl": "Google Maps URL"
+          }
+        }
+      ],
+      "notes": "Brief notes (max 100 chars)"
+    }
+  ]
+}
+
+Keep descriptions SHORT. 3 activities per day (Morning, Afternoon, Evening). Stay within budget.`;
+
+  try {
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1/models/${process.env.GEMINI_MODEL}:generateContent?key=${process.env.AI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 8192,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const content = response.data.candidates[0].content.parts[0].text;
+    const finishReason = response.data.candidates[0].finishReason;
+    
+    console.log('Response length:', content.length);
+    console.log('Finish reason:', finishReason);
+    console.log('Raw Gemini response (first 300 chars):', content.substring(0, 300));
+    console.log('Raw Gemini response (last 300 chars):', content.substring(content.length - 300));
+    
+    // Remove markdown code blocks if present
+    let cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    
+    console.log('Cleaned content length:', cleanContent.length);
+    
+    // Try to parse the entire cleaned content as JSON
+    try {
+      const itineraryData = JSON.parse(cleanContent);
+      
+      if (!itineraryData.days || !Array.isArray(itineraryData.days)) {
+        throw new Error('Invalid itinerary structure from AI');
+      }
+      
+      console.log('Successfully parsed itinerary with', itineraryData.days.length, 'days');
+      return itineraryData;
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError.message);
+      console.error('Cleaned content (first 500 chars):', cleanContent.substring(0, 500));
+      console.error('Cleaned content (last 500 chars):', cleanContent.substring(cleanContent.length - 500));
+      throw new Error('Failed to parse AI response as JSON');
+    }
+  } catch (error) {
+    console.error('Gemini API Error:', error.response?.data || error.message);
+    throw new Error('Failed to generate itinerary using AI. Please try again.');
+  }
+};
+
 const generateItineraryForTrip = async (trip) => {
   const provider = process.env.AI_PROVIDER || 'mock';
   const apiKey = process.env.AI_API_KEY;
@@ -205,6 +303,16 @@ const generateItineraryForTrip = async (trip) => {
   if (provider === 'mock' || !apiKey || apiKey === 'your_api_key_here') {
     console.log('Using mock AI itinerary generation');
     return generateMockItinerary(trip);
+  }
+
+  if (provider === 'gemini') {
+    console.log('Using Google Gemini for itinerary generation');
+    try {
+      return await generateGeminiItinerary(trip);
+    } catch (error) {
+      console.error('AI generation failed, falling back to mock:', error.message);
+      return generateMockItinerary(trip);
+    }
   }
 
   if (provider === 'openai') {
